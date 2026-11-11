@@ -1,47 +1,112 @@
 # Pokemon Battler
 
-Pokemon Battler är en konsolbaserad Java-app där användaren kan hantera sin egen Pokedex, strida mot en datorstyrd motståndare och se stridsstatistik.
+Pokemon Battler är en konsolbaserad Java-applikation där användaren kan hantera sin egen Pokedex, strida mot datorstyrda motståndare och följa sin stridsstatistik.
+
+Projektet är utvecklat i Java 21 och använder PostgreSQL, JPA/Hibernate och MongoDB för databashantering. JSON-filhantering med Jackson finns också kvar som en del av projektet.
+
+## Tekniker
+
+**Java 21** – programmeringsspråk
+
+**Maven** – beroendehantering och byggverktyg
+
+**PostgreSQL** – relationsdatabas för Pokemon-data
+
+**JPA/Hibernate** – objektorienterad åtkomst till PostgreSQL
+
+**MongoDB** – dokumentdatabas för stridsstatistik och stridsloggar
+
+**MongoDB** Java Sync Driver – kommunikation med MongoDB
+
+**Jackson** – serialisering och deserialisering av JSON
+
+**Docker Compose** – lokal databasmiljö
+
+**dotenv-java** – hantering av miljövariabler
+
+**JUnit** – enhetstester
 
 ## Kom igång
+- Förutsättningar
 
-Projektet använder Java 21 och Maven.
+Du behöver ha följande installerat:
 
-1. Klona projektet:
+- Java 21
+- Maven
+- Docker Desktop eller Docker Engine med Compose
+- IntelliJ IDEA eller motsvarande IDE
+
+### 1. Klona projektet:
 ```
-git clone https://github.com/figge94/pokemon-battler.git
+git clone https://github.com/figge94/DB_Pokedex.git
+cd DB_Pokedex
 ```
-2. Öppna projektet i IntelliJ IDEA.
-3. Låt Maven läsa in projektets beroenden.
-4. Kör klassen `Main`.
+### 2. Konfigurera miljövariabler
 
-Om ingen sparad Pokemon-fil finns laddas startdata från `pokemon-seed.json`.
+Kopiera .env.example till .env och ange dina egna databasuppgifter.
+
+.env används lokalt och ska inte versionshanteras. .env.example innehåller endast exempelvärden.
+
+Observera att MongoDB-användarnamnet och lösenordet för närvarande inte används av Java-anslutningen. Den lokala MongoDB-konfigurationen utgår från en anslutning utan autentisering.
+
+
+### 3. Starta databaserna
+
+Projektet använder PostgreSQL och MongoDB.
+
+MongoDB körs lokalt med Docker och nås via port 27018. PostgreSQL nås via port 5433.
+
+Starta tjänsterna som definieras i projektets Docker Compose-konfiguration:
+
+```
+docker compose up -d
+```
+
+Kontrollera vilka containrar som körs:
+
+```
+docker compose ps
+```
+
+PostgreSQL måste också vara startad och konfigurerad med de uppgifter som anges i .env.
+
+### 4. Starta programmet
+
+Öppna projektet i IntelliJ IDEA, låt Maven läsa in beroendena och kör klassen:
+
+se.systementor.utbildning.Main
+
+Programmet ansluter till PostgreSQL och MongoDB vid uppstart.
 
 ## Funktioner
 
 ### Pokedex
 
-Användaren kan visa, söka, lägga till, redigera och ta bort Pokemon via huvudmenyn.
+Användaren kan:
 
-Varje Pokemon har ett unikt ID, namn, typ, HP, snabbhet och attacker. 
-Det går att ändra en Pokemons egenskaper samt lägga till och ta bort attacker.
+- Visa alla Pokemon.
+- Söka efter Pokemon.
+- Lägga till nya Pokemon.
+- Redigera befintliga Pokemon.
+- Ta bort Pokemon.
+- Spara och läsa Pokemon-data via JSON.
+- Återställa data från pokemon-seed.json.
 
-Pokemon-data kan sparas och läsas från pokemon.json. 
-Användaren kan även återställa samlingen till ursprungliga startdata 
-från `pokemon-seed.json`.
+Varje Pokemon har ett ID, namn, typ, HP, snabbhet och attacker.
+
+Den huvudsakliga Pokemon-datahanteringen använder PostgreSQL genom JPA/Hibernate.
 
 ## Stridssystem
 
-I huvudmenyn kan man välja att spela. För att spela så funkar det såhär:
+Spelaren väljer en Pokemon och möter en slumpmässigt vald motståndare.
 
-Spelaren väljer den Pokemon man vill spela med och möter en slumpmässigt
-vald motståndare. Striderna är turbaserade och en Pokemons snabbhet avgör
-vem som attackerar först. Om båda är lika snabba är det slumpen som avgör.
+Striderna är turbaserade och snabbheten avgör vem som attackerar först. Vid lika snabbhet avgör slumpen.
 
-Spelaren får välja sin handling via en meny medan CPU väljer attacker
-genom en strategi. Attacker kan missa, göra varierande skada och orsaka
-kritiska träffar.
+Spelaren väljer handling via en meny medan CPU använder en strategi för att välja attacker.
 
-Striden avslutas när en Pokemon besegras eller spelaren flyr. Efteråt återställs Pokemons HP.
+Attacker kan missa, orsaka varierande skada och ge kritiska träffar.
+
+Striden avslutas när en Pokemon besegras eller spelaren flyr. Efteråt återställs deltagarnas HP.
 
 ## Skadeberäkning
 
@@ -49,28 +114,93 @@ Skadan beräknas enligt:
 
 **Skada = max(1, heltal(grundskada × typeffektivitet × slumpfaktor))**
 
-`Math.max(1, ...)` ser till att en attack som träffar alltid gör minst 1 i skada,
-även om beräkningen annars skulle avrundas nedåt till 0. 
-En attack som missar gör fortfarande 0 i skada.
-
-Vid en kritisk träff multipliceras resultatet med 2.
-
 - **Basskada:** Attackens grundskada.
-- **Typeffektivitet:** 2,0 vid typfördel, 0,5 vid typnackdel och annars 1,0 för de typkombinationer som programmet hanterar.
-- **Slumpfaktor:** Mellan 0,85 och 1,00, vilket ger variation mellan attacker.
-- **Kritisk faktor:** En kritisk träff har 1/16 chans att inträffa och fördubblar skadan. Annars är faktorn 1.
+- **Typeffektivitet:** 2,0 vid typfördel, 0,5 vid typnackdel och annars 1,0 för de kombinationer programmet hanterar.
+- **Slumpfaktor:** Mellan 0,85 och 1,00.
+- **Kritisk träff:** 1/16 chans att fördubbla skadan.
+
+En attack som missar orsakar 0 skada.
+
+## Databashantering
+
+Projektet använder två olika databastyper med separata ansvarsområden.
+
+PostgreSQL och JPA/Hibernate
+
+PostgreSQL är en relationsdatabas som används för att lagra Pokemon-data.
+
+JPA/Hibernate hanterar kopplingen mellan Java-objekt och relationella tabeller.
+
+Projektet använder bland annat:
+
+- **PokemonDao** – interface för Pokemon-dataåtkomst.
+- **JpaPokemonRepository** – implementation som använder JPA.
+- **PokemonEntity** – databasrepresentation av Pokemon.
+- **AttackEntity** – databasrepresentation av attacker.
+- **DbConfig** – ansvarar för konfiguration av EntityManagerFactory.
+
+Databasanslutningen konfigureras via .env.
+
+## MongoDB
+
+MongoDB används för att lagra stridsstatistik och individuella stridsloggar som BSON-dokument.
+
+Projektet använder MongoDB Java Sync Driver direkt, utan Spring Data.
+
+MongoDB-databasen innehåller två collections:
+
+**battle_stats**
+
+Lagrar sammanställd statistik för spelaren, bland annat:
+
+Totalt antal vinster, förluster och flykter.
+
+Vinster och förluster per Pokemon.
+
+Hur ofta olika Pokemon används.
+
+Hur ofta spelarens attacker används.
+
+Statistiken lagras i ett dokument som uppdateras med replaceOne() och upsert(true).
+
+**battleLogs**
+
+Lagrar individuella strider som separata dokument.
+
+Varje stridslogg innehåller:
+
+- matchId – unik identifierare för striden.
+- playedAt – tidpunkt för striden.
+- participants – deltagande Pokemons ID.
+- winnerPokemonId – vinnaren, eller null vid flykt.
+- rounds – utförda attacker, rundnummer och faktisk HP-förlust.
+
+## CRUD med MongoDB
+
+Projektet implementerar CRUD-operationerna genom BattleLogRepository och MongoBattleLogRepository.
+
+
+| Operation       | MongoDB-metod | Funktion                            |
+|-----------------|---------------|-------------------------------------|
+| `Create`        | insertOne()   | Skapar en stridslogg                |
+| `Read`          | find()        | Hämtar stridsloggar                 |
+| `Update`        | updateOne()   | Markerar en stridslogg som granskad |
+| `Delete`        | deleteOne()   | Tar bort en stridslogg              |
+
+Det finns även möjlighet att söka efter strider där en specifik Pokemon deltagit genom findByPokemonId().
+
+CRUD-operationerna har verifierats genom manuella tester.
 
 ## Stridsstatistik
 
-Programmet sparar statistik över spelarens strider.
+Programmet sparar statistik automatiskt efter varje avslutad strid.
 
 Under **Spela** kan användaren välja mellan:
 
-- **Starta strid:** Startar en strid mot en datorstyrd spelare.
-- **Total statistik:** Visar totalt antal strider, vinster och förluster samt hur många gånger man valt att fly.
-- **Statistik per Pokemon:** Visar antal vinster, förluster, vinstprocent och win/loss-ratio för varje Pokemon som deltagit i strider.
-- **Mest använda Pokemon:** Visar vilken Pokemon spelaren har använt flest gånger och antal strider.
-- **Mest använda attack:** Visar en lista över spelarens attacker, sorterade efter hur många gånger de använts.
+- Total statistik över vinster, förluster och flykter.
+- Statistik för individuella Pokemon.
+- Mest använda Pokemon.
+- Mest använda attacker.
 
 Vinstprocenten beräknas enligt:
 
@@ -82,109 +212,109 @@ Win/loss-ratio beräknas enligt:
 
 Om en Pokemon har vinster men inga förluster visas ratio som oändlig (`∞`).
 
-Efter avslutad strid sparas statistiken automatiskt i `battle-stats.json` med hjälp av Jackson.
+Statistiken kopplas till Pokemon-ID i stället för namn, så att historiken bevaras om en Pokemon byter namn.
 
-Statistiken kopplas till en Pokemons ID istället för namn, så att tidigare resultat bevaras om en Pokemon byter namn.
+Statistiken lagras nu i MongoDB i stället för i  `battle-stats.json`.
 
-Om statistikfilen saknas skapas ny statistik automatiskt.
+## Repository-mönstret
+
+Projektet använder repository-mönstret för att separera applikationslogiken från databasåtkomsten.
+
+**MongoBattleStatsRepository** implementerar interfacet för MongoDB.
+
+**BattleService** använder interfacet och behöver därför inte känna till hur informationen lagras.
+
+Samma princip används för Pokemon-data genom PokemonDao och för stridsloggar genom BattleLogRepository.
+
+Det gör det möjligt att byta lagringsimplementation utan att behöva skriva om affärslogiken.
 
 ## Ansvarsfördelning
 
-| Paket           | Ansvar                                                       |
-|-----------------|--------------------------------------------------------------|
-| `model`         | Pokemon, attacker, strider och statistik                     |
-| `service`       | Programmets logik och stridsflöde                            |
-| `repository`    | Läser och sparar JSON-filer                                  |
-| `ui`            | Menyer, presentation och användarinmatning                   |
-| `exception`     | Egna undantagsklasser                                        |
-| `strategy`      | CPU-strategier                                               |
-
-
-Uppdelningen gör det lättare att vidareutveckla olika delar av programmet utan att behöva ändra all kod samtidigt.
+| Paket               | Ansvar                                                       |
+|---------------------|--------------------------------------------------------------|
+| `model`             | Pokemon, attacker, strider, statistik och stridsloggar       |
+| `service`           | Programmets logik och stridsflöde                            |
+| `repository`        | Interface för dataåtkomst och filhantering                   |
+| `repository.jpa`    | PostgreSQL och JPA/Hibernate                                 |
+| `repository.mongo`  | MongoDB och dokumenthantering                                |
+| `config`            | Databaskonfiguration                                         |
+| `ui`                | Menyer, presentation och användarinmatning                   |
+| `exception`         | Egna undantagsklasser                                        |
+| `strategy`          | CPU-strategier                                               |
 
 ## Objektorienterad programmering (OOP)
-Projektet använder objektorienterad programmering för att skapa en tydlig struktur och fördela ansvar mellan klasser.
+Projektet använder objektorienterad programmering för att separera ansvar och skapa en tydlig struktur.
 
 ### Inkapsling
-I klassen `Pokemon` är attributen privata och nås genom metoder. Klassen kontrollerar själv att HP och antalet attacker följer reglerna. Andra klasser behöver därför inte hantera dessa kontroller.
+Klassen `Pokemon` har privata attribut och ansvarar själv för att kontrollera exempelvis HP och antalet attacker.
 
-Även `Battle` kapslar in stridens tillstånd genom metoder som `isOver()`, `playerWon()` och `flee()`.
+`Battle` kapslar in stridens tillstånd genom metoder som `isOver()`, `playerWon()` och `flee()`.
 
 ### Arv och abstraktion
-`Attack` är en abstrakt klass som innehåller gemensamma
-egenskaper för attacker, såsom namn, typ, grundskada och träffsäkerhet.
+`Attack` är en abstrakt klass som innehåller gemensamma egenskaper för attacker.
 
-`DamageAttack` ärver från `Attack` och implementerar
-hur en attack orsakar skada.
-
-På så sätt återanvänds gemensam kod samtidigt som specifikt beteende kan definieras i underklasser.
+`DamageAttack` ärver från `Attack` och implementerar hur en attack orsakar skada.
 
 ### Interfaces och polymorfism
 
-Jag har valt att använda interfacen `BattleAction` och `ActionResult` för att kunna hantera olika stridshandlingar och deras resultat på ett gemensamt sätt.
+**`BattleAction`** definierar gemensamma metoder för olika stridshandlingar.
 
-**`BattleAction`** definierar metoder som `execute()`, `label()` och `endsBattle()`. Jag valde detta interface eftersom både attacker och flykt ska kunna användas som stridshandlingar, trots att de fungerar olika.
+Både attacker och flykt kan hanteras som BattleAction, trots att de har olika beteenden.
 
-`Attack` och `FleeAction` använder `BattleAction`. När `execute()` anropas utförs rätt metod beroende på vilken handling det är. Det är ett exempel på polymorfism.
+**`ActionResult`** används för representera resultat från olika handlingar, exempelvis `AttackResult` och `FleeResult`.
 
-**`ActionResult`** används för resultaten av handlingarna. Jag valde detta interface då `AttackResult` och `FleeResult` innehåller olika information men ändå ska kunna hanteras som resultat från en stridshandling.
-
-Det gör att stridssystemet kan arbeta med gemensamma typer i stället för att vara beroende av varje enskild klass. Det blir också lättare att lägga till nya typer av handlingar och resultat senare.
+Repository-interfacen är ytterligare exempel på polymorfism eftersom olika implementationer kan användas genom samma interface.
 
 ### Enum
-`Type` är en enum som innehåller Pokemons olika typer.
-Det förhindrar att ogiltiga typnamn används i programmet.
+Type är en enum som representerar olika Pokemon-typer och förhindrar ogiltiga typnamn.
 
 ### Strategy Pattern
 
-Jag har valt att använda interfacet `CpuStrategy` för att CPU:n ska kunna välja handlingar på olika sätt utan att ändra `CpuPlayer`.
+CPU använder `CpuStrategy` för att välja handlingar.
 
-`CpuStrategy` definierar metoden `chooseAction()`, som varje strategi måste implementera.
-
-Det finns två implementationer:
+Två strategier finns:
 
 - `RandomStrategy` väljer en slumpmässig handling. 
-- `AggressiveStrategy` prioriterar skadeattacker genom att välja den första `DamageAttack` som finns i listan.
+- `AggressiveStrategy` prioriterar skadeattacker.
 
-Jag har valt Strategy Pattern för att skilja CPU:ns beslut från själva stridslogiken. På så sätt kan fler strategier läggas till utan att ändra hur `CpuPlayer` fungerar.
-
-`CpuPlayer` får strategin via konstruktorn, vilket är ett exempel på Dependency Injection. Eftersom olika strategier kan användas genom samma interface visar det även polymorfism.
+Strategin skickas till  `CpuPlayer` via konstruktorn, vilket även är ett exempel på Dependency Injection.
 
 ## Filhantering och felhantering
 
-Programmet använder följande JSON-filer:
+Projektet innehåller fortfarande stöd för JSON-filhantering med Jackson.
 
 - `pokemon-seed.json` – ursprunglig Pokemon-data.
+- `pokemon.json` – fil för sparad Pokemon-data.
 
-- `pokemon.json` – sparad Pokemon-data.
+Filsökvägarna konfigureras via .env.
 
-- `battle-stats.json` – sparad stridsstatistik.
+Stridsstatistiken lagras däremot i MongoDB och inte längre i `battle-stats.json`.
 
-Filhanteringen använder Jackson. Om den sparade Pokemons-filen är ogiltig försöker 
-programmet ladda startdata i stället. Saknad eller oläsbar statistikfil 
-hanteras genom att skapa tom statistik.
+Programmet använder validering och egna undantagsklasser för att hantera ogiltig data och felaktig användarinmatning.
 
-Programmet validerar även användarinmatning och använder egna undantagsklasser
-för att hantera fel utan onödiga krascher.
+## Tester
 
-## VG-krav
+Projektet innehåller JUnit-tester och har även testats manuellt.
 
-Projektet innehåller följande funktioner för VG:
+MongoDB-operationerna Create, Read, Update och Delete har verifierats genom separata tester.
 
-- **Typeffektivitet:** `TypeEffectiveness` hanterar samtliga typkombinationer som anges i uppgiften.
+## Funktioner från tidigare kursmoment
 
-- **JSON-persistens:** Pokemon och stridsstatistik sparas och läses med Jackson.
+Projektet innehåller funktioner som utvecklades under tidigare kursmoment:
 
-- **Kritiska träffar:** Varje träff har 1/16 chans att bli kritisk och göra dubbel skada. Kritiska träffar visas i stridsloggen.
+- Typeffektivitet vid attacker.
+- JSON-persistens med Jackson.
+- Kritiska träffar.
+- Persistent stridsstatistik.
+- OOP med arv, interfaces och polymorfism.
+- Strategy Pattern och Dependency Injection.
 
-- **Persistent statistik:** Vinster, förluster och användningsstatistik för Pokemon och attacker sparas mellan programstarter. Vinstprocent och vinst/förlust-ratio beräknas från den sparade statistiken.
+Dessa har senare kompletterats med PostgreSQL, JPA/Hibernate och MongoDB.
 
 ## Kända begränsningar
 
-- Typeffektiviteten omfattar inte alla typkombinationer från de officiella Pokemon-spelen.
-
-- Om sparad Pokemon-data är ogiltig laddas seed-data i stället, om den finns.
-
-- En Pokemon måste ha minst en attack för att vara giltig, vilket gör att strid med en Pokemon utan attacker normalt förhindras redan vid inläsningen.
-
-- Just nu finns bara attacker som kan göra skada.
+- Typeffektiviteten omfattar inte samtliga typkombinationer från de officiella Pokemon-spelen.
+- Endast skadeattacker finns implementerade.
+- MongoDB-lagringen använder den synkrona Java-drivrutinen.
+- PostgreSQL och MongoDB används i samma applikation, men skrivningar till de två databaserna ingår inte i en gemensam transaktion.
+- Den lokala MongoDB-konfigurationen är avsedd för utveckling och använder för närvarande ingen autentisering.

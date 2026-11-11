@@ -74,12 +74,12 @@ public class PokemonEditMenu {
             switch (choice) {
                 case 1 -> editPokemonName(pokemons, pokemon, scanner);
                 case 2 -> editPokemonType(pokemons, pokemon, scanner);
-                case 3 -> editPokemonCurrentHp(pokemons, pokemon, scanner);
+                case 3 -> editPokemonCurrentHp(pokemon, scanner);
                 case 4 -> editPokemonMaxHp(pokemons, pokemon, scanner);
                 case 5 -> editPokemonSpeed(pokemons, pokemon, scanner);
-                case 6 -> attackMenu.handleAddAttack(pokemons, pokemon, scanner);
+                case 6 -> attackMenu.handleAddAttack(pokemon, scanner);
                 case 7 -> attackMenu.removeAttackFromPokemon(
-                        pokemons, pokemon, scanner
+                        pokemon, scanner
                 );
                 case 8 -> {
                     Messages.info("Går tillbaka till huvudmenyn.");
@@ -138,7 +138,6 @@ public class PokemonEditMenu {
 
     // Ändrar Pokemons nuvarande HP.
     private void editPokemonCurrentHp(
-            List<Pokemon> pokemons,
             Pokemon pokemon,
             Scanner scanner
     ) {
@@ -149,18 +148,8 @@ public class PokemonEditMenu {
                 pokemon.getMaxHp()
         );
 
-        try {
-            pokemonService.editPokemonCurrentHp(
-                    pokemons,
-                    pokemon,
-                    hp
-            );
-
-            Messages.success("Nuvarande HP har uppdaterats.");
-
-        } catch (PokemonSaveException e) {
-            Messages.error(e.getMessage());
-        }
+        pokemonService.editPokemonCurrentHp(pokemon, hp);
+        Messages.success("Nuvarande HP har uppdaterats.");
     }
 
     // Ändrar Pokemons maximala HP.

@@ -22,7 +22,6 @@ public class AttackMenu {
 
     // Läser in och lägger till en ny attack på en Pokemon.
     public void handleAddAttack(
-            List<Pokemon> pokemons,
             Pokemon pokemon,
             Scanner scanner
     ) {
@@ -64,7 +63,6 @@ public class AttackMenu {
 
         try {
             pokemonService.addAttackToPokemon(
-                    pokemons,
                     pokemon,
                     newAttack
             );
@@ -82,7 +80,6 @@ public class AttackMenu {
 
     // Låter användaren välja en attack att ta bort.
     public void removeAttackFromPokemon(
-            List<Pokemon> pokemons,
             Pokemon pokemon,
             Scanner scanner
     ) {
@@ -116,7 +113,6 @@ public class AttackMenu {
             // Skickar attacken till PokemonService för borttagning.
             // Servicen ansvarar för att ändra Pokemon och spara resultatet.
             pokemonService.removeAttackFromPokemon(
-                    pokemons,
                     pokemon,
                     attackToRemove
             );

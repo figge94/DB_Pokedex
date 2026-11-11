@@ -116,9 +116,22 @@ class PokemonTest {
     }
 
     @Test
-    void constructor_shouldRejectInvalidId() {
-        assertThrows(InvalidPokemonException.class,
-                () -> new Pokemon(0, "Pikachu", Type.ELECTRIC, 100, 90));
+    void constructor_shouldAllowTemporaryIdZero() {
+        Pokemon pokemon = new Pokemon(
+                0, "Pikachu", Type.ELECTRIC, 100, 90
+        );
+
+        assertEquals(0, pokemon.getId());
+    }
+
+    @Test
+    void constructor_shouldRejectNegativeId() {
+        assertThrows(
+                InvalidPokemonException.class,
+                () -> new Pokemon(
+                        -1, "Pikachu", Type.ELECTRIC, 100, 90
+                )
+        );
     }
 
     @Test

@@ -5,9 +5,9 @@ import se.systementor.utbildning.exception.PokemonSaveException;
 import se.systementor.utbildning.model.Attack;
 import se.systementor.utbildning.model.Pokemon;
 import se.systementor.utbildning.model.Type;
-import se.systementor.utbildning.repository.PokemonFileService;
 import se.systementor.utbildning.repository.PokemonDao;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,6 +31,7 @@ public class PokemonService {
                 )
                 .findFirst();
     }
+
 
     // Söker efter en Pokemon via Optional-metoden.
     // Returnerar null tills övriga klasser har anpassats till Optional.
@@ -98,7 +99,6 @@ public class PokemonService {
     }
 
     public void addAttackToPokemon(
-            List<Pokemon> pokemons,
             Pokemon pokemon,
             Attack attack
     ) {
@@ -114,12 +114,11 @@ public class PokemonService {
     }
 
     public void removeAttackFromPokemon(
-            List<Pokemon> pokemons,
             Pokemon pokemon,
             Attack attack
     ) {
         // Spara den ursprungliga attacklistan.
-        List<Attack> originalAttacks = pokemon.getAttacks();
+        List<Attack> originalAttacks = new ArrayList<>(pokemon.getAttacks());
 
         // Pokemon kontrollerar att attacken får tas bort.
         pokemon.removeAttack(attack);
@@ -129,36 +128,6 @@ public class PokemonService {
         } catch (PokemonSaveException e) {
             // Återställ attackerna och deras ursprungliga ordning.
             pokemon.replaceAttacks(originalAttacks);
-            throw e;
-        }
-    }
-
-    private static void replacePokemon(
-            List<Pokemon> pokemons,
-            Pokemon originalPokemon,
-            Pokemon updatedPokemon
-    ) {
-        int index = pokemons.indexOf(originalPokemon);
-
-        if (index == -1) {
-            throw new InvalidPokemonException(
-                    "Pokemon hittades inte i listan."
-            );
-        }
-
-        pokemons.set(index, updatedPokemon);
-    }
-
-    private void saveOrRollback(
-            List<Pokemon> pokemons,
-            Pokemon originalPokemon,
-            Pokemon updatedPokemon
-    ) {
-        try {
-            pokemonDao.save(updatedPokemon);
-        } catch (PokemonSaveException e) {
-            // Återställ originalet om sparandet misslyckas.
-            replacePokemon(pokemons, updatedPokemon, originalPokemon);
             throw e;
         }
     }
@@ -176,13 +145,11 @@ public class PokemonService {
             );
         }
 
-        Pokemon updatedPokemon = pokemon.withName(newName);
-
-        replacePokemon(pokemons, pokemon, updatedPokemon);
-
-        saveOrRollback(pokemons, pokemon, updatedPokemon);
-
-        return updatedPokemon;
+        return updatePokemon(
+                pokemons,
+                pokemon,
+                pokemon.withName(newName)
+        );
     }
 
     // Ändrar typ på en Pokemon.
@@ -191,21 +158,15 @@ public class PokemonService {
             Pokemon pokemon,
             Type newType
     ) {
-        Pokemon updatedPokemon = pokemon.withType(newType);
-
-        replacePokemon(pokemons, pokemon, updatedPokemon);
-
-        saveOrRollback(pokemons, pokemon, updatedPokemon);
-
-        return updatedPokemon;
+        return updatePokemon(
+                pokemons,
+                pokemon,
+                pokemon.withType(newType)
+        );
     }
 
     // Ändrar currentHp på en Pokemon.
-    public void editPokemonCurrentHp(
-            List<Pokemon> pokemons,
-            Pokemon pokemon,
-            int hp
-    ) {
+    public void editPokemonCurrentHp(Pokemon pokemon, int hp) {
         int difference = hp - pokemon.getCurrentHp();
 
         if (difference > 0) {
@@ -221,13 +182,11 @@ public class PokemonService {
             Pokemon pokemon,
             int hp
     ) {
-        Pokemon updatedPokemon = pokemon.withMaxHp(hp);
-
-        replacePokemon(pokemons, pokemon, updatedPokemon);
-
-        saveOrRollback(pokemons, pokemon, updatedPokemon);
-
-        return updatedPokemon;
+        return updatePokemon(
+                pokemons,
+                pokemon,
+                pokemon.withMaxHp(hp)
+        );
     }
 
     public Pokemon editPokemonSpeed(
@@ -235,13 +194,11 @@ public class PokemonService {
             Pokemon pokemon,
             int speed
     ) {
-        Pokemon updatedPokemon = pokemon.withSpeed(speed);
-
-        replacePokemon(pokemons, pokemon, updatedPokemon);
-
-        saveOrRollback(pokemons, pokemon, updatedPokemon);
-
-        return updatedPokemon;
+        return updatePokemon(
+                pokemons,
+                pokemon,
+                pokemon.withSpeed(speed)
+        );
     }
 
     // Tar bort en Pokemon från listan.
@@ -257,16 +214,26 @@ public class PokemonService {
             );
         }
 
+        pokemonDao.delete(pokemon.getId());
         pokemons.remove(index);
+    }
 
-        try {
-            // Tar bort Pokemon från databasen.
-            pokemonDao.delete(pokemon.getId());
+    private Pokemon updatePokemon(
+            List<Pokemon> pokemons,
+            Pokemon original,
+            Pokemon updated
+    ) {
+        int index = pokemons.indexOf(original);
 
-        } catch (PokemonSaveException e) {
-            // Återställer Pokemon på samma plats om sparandet misslyckas.
-            pokemons.add(index, pokemon);
-            throw e;
+        if (index == -1) {
+            throw new InvalidPokemonException(
+                    "Pokemon hittades inte i listan."
+            );
         }
+
+        pokemonDao.save(updated);
+        pokemons.set(index, updated);
+
+        return updated;
     }
 }

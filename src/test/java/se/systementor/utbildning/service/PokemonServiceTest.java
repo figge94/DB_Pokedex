@@ -1,16 +1,19 @@
 package se.systementor.utbildning.service;
 
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import se.systementor.utbildning.exception.InvalidPokemonException;
 import se.systementor.utbildning.model.BattleStats;
 import se.systementor.utbildning.model.Pokemon;
 import se.systementor.utbildning.model.Type;
-import se.systementor.utbildning.repository.PokemonFileService;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+
+import se.systementor.utbildning.repository.PokemonDao;
+
+import static org.mockito.Mockito.mock;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -20,7 +23,7 @@ public class PokemonServiceTest {
     private BattleStats stats;
 
     @Test
-    void createPokemonShouldNotReuseIdFromBattleStats() {
+    void createPokemonShouldNotUseBattleStatsForId() {
         stats.addWin(10);
 
         Pokemon pokemon = pokemonService.createPokemon(
@@ -31,12 +34,11 @@ public class PokemonServiceTest {
                 50
         );
 
-        // ID 10 finns i historiken och får inte återanvändas.
-        assertEquals(11, pokemon.getId());
+        assertEquals(0, pokemon.getId());
     }
 
     @Test
-    void createPokemonShouldStartWithIdOne() {
+    void createPokemonShouldHaveTemporaryIdZero() {
         Pokemon pokemon = pokemonService.createPokemon(
                 new ArrayList<>(),
                 "TestPokemon",
@@ -46,11 +48,11 @@ public class PokemonServiceTest {
         );
 
         // Första Pokemon ska få ID 1.
-        assertEquals(1, pokemon.getId());
+        assertEquals(0, pokemon.getId());
     }
 
     @Test
-    void createPokemonShouldUseNextAvailableId() {
+    void createPokemonShouldNotGenerateId() {
         Pokemon existingPokemon = pokemonService.createPokemon(
                 new ArrayList<>(),
                 "TestPokemon",
@@ -68,11 +70,11 @@ public class PokemonServiceTest {
         );
 
         // Nästa Pokemon ska få ett högre ID än den befintliga.
-        assertEquals(2, newPokemon.getId());
+        assertEquals(0, newPokemon.getId());
     }
 
     @Test
-    void createPokemonShouldNotReuseIdFromLossStats() {
+    void createPokemonShouldNotUseLossStatsForId() {
         stats.addLoss(15);
 
         Pokemon pokemon = pokemonService.createPokemon(
@@ -83,12 +85,11 @@ public class PokemonServiceTest {
                 50
         );
 
-        // ID 15 finns i förlusthistoriken och får inte återanvändas.
-        assertEquals(16, pokemon.getId());
+        assertEquals(0, pokemon.getId());
     }
 
     @Test
-    void createPokemonShouldNotReuseIdFromUsageStats() {
+    void createPokemonShouldNotUseUsageStatsForId() {
         stats.registerPokemonUsage(20);
 
         Pokemon pokemon = pokemonService.createPokemon(
@@ -99,8 +100,7 @@ public class PokemonServiceTest {
                 50
         );
 
-        // ID 20 finns i historiken och får inte återanvändas.
-        assertEquals(21, pokemon.getId());
+        assertEquals(0, pokemon.getId());
     }
 
     @Test
@@ -277,5 +277,13 @@ public class PokemonServiceTest {
                         50
                 )
         );
+    }
+
+    @BeforeEach
+    void setUp() {
+        PokemonDao pokemonDao = mock(PokemonDao.class);
+
+        pokemonService = new PokemonService(pokemonDao);
+        stats = new BattleStats();
     }
 }

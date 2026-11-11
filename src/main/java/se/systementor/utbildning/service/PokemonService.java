@@ -3,27 +3,20 @@ package se.systementor.utbildning.service;
 import se.systementor.utbildning.exception.InvalidPokemonException;
 import se.systementor.utbildning.exception.PokemonSaveException;
 import se.systementor.utbildning.model.Attack;
-import se.systementor.utbildning.model.BattleStats;
 import se.systementor.utbildning.model.Pokemon;
 import se.systementor.utbildning.model.Type;
 import se.systementor.utbildning.repository.PokemonFileService;
+import se.systementor.utbildning.repository.PokemonDao;
 
 import java.util.List;
 import java.util.Optional;
 
 public class PokemonService {
 
-    // Statistik som behövs när nya Pokemon-ID:n skapas.
-    private final BattleStats battleStats;
-    private final PokemonFileService pokemonFileService;
+    private final PokemonDao pokemonDao;
 
-    // Beroenden skickas in utifrån.
-    public PokemonService(
-            BattleStats battleStats,
-            PokemonFileService pokemonFileService
-    ) {
-        this.battleStats = battleStats;
-        this.pokemonFileService = pokemonFileService;
+    public PokemonService(PokemonDao pokemonDao) {
+        this.pokemonDao = pokemonDao;
     }
 
     // Söker efter en Pokemon utan att skilja på stora och små bokstäver.
@@ -47,36 +40,6 @@ public class PokemonService {
     ) {
         return findPokemonOptional(pokemons, name)
                 .orElse(null);
-    }
-
-    // Hämtar nästa ID utan att återanvända ID från stridsstatistiken.
-    private int getNextId(List<Pokemon> pokemons) {
-
-        int maxId = pokemons.stream()
-                .mapToInt(Pokemon::getId)
-                .max()
-                .orElse(0);
-
-        // Hittar högsta ID från tidigare stridsstatistik.
-        maxId = findMaxId(maxId, battleStats.getWinsByPokemon().keySet());
-        maxId = findMaxId(maxId, battleStats.getLossesByPokemon().keySet());
-        maxId = findMaxId(maxId, battleStats.getPokemonUsage().keySet());
-
-        return maxId + 1;
-    }
-
-    private static int findMaxId(
-            int currentMax,
-            Iterable<Integer> ids
-    ) {
-        // Hittar det högsta ID:t utan att minska tidigare maxvärde.
-        int maxId = currentMax;
-
-        for (int id : ids) {
-            maxId = Math.max(maxId, id);
-        }
-
-        return maxId;
     }
 
     // Kontrollerar om namnet används av någon annan Pokemon än den som redigeras.
@@ -108,8 +71,9 @@ public class PokemonService {
                     );
                 });
 
-        // ID genereras med statistikobjektet som tillhör tjänsten.
-        int id = getNextId(pokemons);
+        // ID 0 betyder att Pokemonen ännu inte är sparad.
+        // Databasen genererar ID:t vid insert.
+        int id = 0;
 
         Pokemon pokemon = new Pokemon(
                 id,
@@ -125,21 +89,12 @@ public class PokemonService {
         return pokemon;
     }
 
-    // Lägger till en ny Pokemon med validerad input.
     public void addPokemon(
             List<Pokemon> pokemons,
             Pokemon pokemon
     ) {
-        pokemons.add(pokemon);
-
-        try {
-            // Sparar den uppdaterade listan.
-            pokemonFileService.savePokemonsToFile(pokemons);
-        } catch (PokemonSaveException e) {
-            // Ångrar tillägget om sparandet misslyckas.
-            pokemons.remove(pokemon);
-            throw e;
-        }
+        Pokemon savedPokemon = pokemonDao.insert(pokemon);
+        pokemons.add(savedPokemon);
     }
 
     public void addAttackToPokemon(
@@ -150,7 +105,7 @@ public class PokemonService {
         pokemon.addAttack(attack);
 
         try {
-            pokemonFileService.savePokemonsToFile(pokemons);
+            pokemonDao.save(pokemon);
         } catch (PokemonSaveException e) {
             // Ångra attacken om sparandet misslyckas.
             pokemon.removeAttack(attack);
@@ -170,7 +125,7 @@ public class PokemonService {
         pokemon.removeAttack(attack);
 
         try {
-            pokemonFileService.savePokemonsToFile(pokemons);
+            pokemonDao.save(pokemon);
         } catch (PokemonSaveException e) {
             // Återställ attackerna och deras ursprungliga ordning.
             pokemon.replaceAttacks(originalAttacks);
@@ -200,7 +155,7 @@ public class PokemonService {
             Pokemon updatedPokemon
     ) {
         try {
-            pokemonFileService.savePokemonsToFile(pokemons);
+            pokemonDao.save(updatedPokemon);
         } catch (PokemonSaveException e) {
             // Återställ originalet om sparandet misslyckas.
             replacePokemon(pokemons, updatedPokemon, originalPokemon);
@@ -251,28 +206,12 @@ public class PokemonService {
             Pokemon pokemon,
             int hp
     ) {
-        int originalHp = pokemon.getCurrentHp();
-        int difference = hp - originalHp;
+        int difference = hp - pokemon.getCurrentHp();
 
         if (difference > 0) {
             pokemon.heal(difference);
         } else if (difference < 0) {
             pokemon.takeDamage(-difference);
-        }
-
-        try {
-            pokemonFileService.savePokemonsToFile(pokemons);
-        } catch (PokemonSaveException e) {
-            // Återställ HP om sparandet misslyckas.
-            int rollbackDifference = originalHp - pokemon.getCurrentHp();
-
-            if (rollbackDifference > 0) {
-                pokemon.heal(rollbackDifference);
-            } else if (rollbackDifference < 0) {
-                pokemon.takeDamage(-rollbackDifference);
-            }
-
-            throw e;
         }
     }
 
@@ -321,8 +260,9 @@ public class PokemonService {
         pokemons.remove(index);
 
         try {
-            // Sparar listan efter borttagningen.
-            pokemonFileService.savePokemonsToFile(pokemons);
+            // Tar bort Pokemon från databasen.
+            pokemonDao.delete(pokemon.getId());
+
         } catch (PokemonSaveException e) {
             // Återställer Pokemon på samma plats om sparandet misslyckas.
             pokemons.add(index, pokemon);

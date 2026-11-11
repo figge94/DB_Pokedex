@@ -19,17 +19,6 @@ public class PokemonServiceTest {
     private PokemonService pokemonService;
     private BattleStats stats;
 
-    @BeforeEach
-    void setUp() {
-        // Varje test får egna objekt och påverkar inte andra tester.
-        stats = new BattleStats();
-
-        PokemonFileService fileService =
-                new PokemonFileService(Path.of("pokemon-test.json"));
-
-        pokemonService = new PokemonService(stats, fileService);
-    }
-
     @Test
     void createPokemonShouldNotReuseIdFromBattleStats() {
         stats.addWin(10);

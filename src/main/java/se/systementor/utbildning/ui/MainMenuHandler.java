@@ -110,8 +110,6 @@ public class MainMenuHandler {
 
                 if (confirm) {
                     try {
-                        // Repository läser in seed-filen och sparar
-                        // den återställda informationen.
                         pokemons = pokemonFileService.resetPokemons(seedPath);
 
                         Messages.success("Data återställd till seedad data.");
@@ -124,11 +122,8 @@ public class MainMenuHandler {
             }
 
             case 10 -> {
-                // Avslutar bara programmet om sparandet lyckas.
-                if (savePokemons(pokemons)) {
-                    System.out.println("Avslutar...");
-                    running = false;
-                }
+                System.out.println("Avslutar...");
+                running = false;
             }
         }
 

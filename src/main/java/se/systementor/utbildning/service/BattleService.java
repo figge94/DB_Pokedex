@@ -1,35 +1,40 @@
 package se.systementor.utbildning.service;
 
-import se.systementor.utbildning.model.Battle;
-import se.systementor.utbildning.model.BattleAction;
-import se.systementor.utbildning.model.BattleStats;
-import se.systementor.utbildning.model.CpuPlayer;
-import se.systementor.utbildning.model.FleeResult;
-import se.systementor.utbildning.model.ActionResult;
-import se.systementor.utbildning.model.Pokemon;
-import se.systementor.utbildning.repository.BattleStatsFileService;
+import se.systementor.utbildning.model.*;
+import se.systementor.utbildning.repository.BattleLogRepository;
+import se.systementor.utbildning.repository.BattleStatsRepository;
 import se.systementor.utbildning.ui.BattleMenu;
 import se.systementor.utbildning.ui.BattlePresentation;
 import se.systementor.utbildning.ui.Messages;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.UUID;
+import java.util.ArrayList;
 
 // Samordnar striden mellan spelaren och CPU:n.
 // Använder andra klasser för handlingar, presentation och statistik.
 public class BattleService {
 
+    private final BattleStatsRepository statsRepository;
     private final BattleStats battleStats;
     private final BattleTurnService battleTurnService;
+    private final BattleLogRepository battleLogRepository;
 
     // Dependency Injection: statistik och CPU-spelare
     // skickas in via konstruktorn i stället för att skapas här.
-    public BattleService(BattleStats battleStats, CpuPlayer cpuPlayer) {
+    public BattleService(
+            BattleStats battleStats,
+            CpuPlayer cpuPlayer,
+            BattleStatsRepository statsRepository,
+            BattleLogRepository battleLogRepository
+    ) {
         this.battleStats = battleStats;
-
-        // Skapar tjänsten som ansvarar för handlingarna under strid.
         this.battleTurnService = new BattleTurnService(battleStats, cpuPlayer);
+        this.statsRepository = statsRepository;
+        this.battleLogRepository = battleLogRepository;
     }
 
     // static final gör att samma slumpgenerator återanvänds.
@@ -104,12 +109,16 @@ public class BattleService {
                     wildPokemon
             );
 
+            List<BattleRound> rounds = new ArrayList<>();
+            int roundNumber = 0;
+
             BattleMenu.showBattleStart(
                     battle.getPlayerPokemon(),
                     battle.getWildPokemon()
             );
 
             while (!battle.isOver()) {
+                roundNumber++;
 
                 // Spelarens val kan vara en attack eller flykt.
                 BattleAction playerAction = BattleMenu.chooseAction(
@@ -157,11 +166,14 @@ public class BattleService {
                         BattlePresentation.pause();
 
                         // Låter BattleTurnService utföra spelarens tur.
-                        battleTurnService.playerTurn(
+                        BattleRound round = battleTurnService.playerTurn(
                                 playerPokemon,
                                 wildPokemon,
-                                playerAction
+                                playerAction,
+                                roundNumber
                         );
+
+                        rounds.add(round);
 
                     } else {
 
@@ -169,10 +181,13 @@ public class BattleService {
                         BattlePresentation.pause();
 
                         // Låter BattleTurnService utföra CPU:ns tur.
-                        battleTurnService.wildTurn(
+                        BattleRound round = battleTurnService.wildTurn(
                                 wildPokemon,
-                                playerPokemon
+                                playerPokemon,
+                                roundNumber
                         );
+
+                        rounds.add(round);
                     }
 
                     BattleMenu.showBattleHp(playerPokemon, wildPokemon);
@@ -202,15 +217,24 @@ public class BattleService {
             }
 
             // Registrerar stridens resultat och sparar statistiken.
+            System.out.println("DEBUG: Sparar battle_stats...");
             saveBattleStatistics(battle, playerPokemon);
+
+            System.out.println("DEBUG: Sparar battleLogs...");
+            saveBattleLog(battle, playerPokemon, wildPokemon, rounds);
+
+            System.out.println("DEBUG: Båda sparningarna klara!");
 
         } catch (IllegalArgumentException e) {
             Messages.error(
                     "Ett fel uppstod under striden: " + e.getMessage()
             );
 
+        } catch (Exception e) {
+            System.err.println("Fel under striden eller sparningen:");
+            e.printStackTrace();
+
         } finally {
-            // finally körs även om ett fel inträffar och återställer HP.
             if (playerPokemon != null) {
                 playerPokemon.restoreHealth();
             }
@@ -219,6 +243,32 @@ public class BattleService {
                 wildPokemon.restoreHealth();
             }
         }
+    }
+
+    private void saveBattleLog(
+            Battle battle,
+            Pokemon playerPokemon,
+            Pokemon wildPokemon,
+            List<BattleRound> rounds
+    ) {
+        Integer winnerId = battle.hasFled()
+                ? null
+                : battle.playerWon()
+                ? playerPokemon.getId()
+                : wildPokemon.getId();
+
+        BattleLog log = new BattleLog(
+                UUID.randomUUID().toString(),
+                Instant.now(),
+                List.of(
+                        playerPokemon.getId(),
+                        wildPokemon.getId()
+                ),
+                winnerId,
+                List.copyOf(rounds)
+        );
+
+        battleLogRepository.save(log);
     }
 
     // Ger spelmenyn tillgång till den aktuella statistiken.
@@ -252,6 +302,6 @@ public class BattleService {
         registerBattleResult(battle, playerPokemon);
 
         // Filhanteringen sköts av BattleStatsFileService.
-        BattleStatsFileService.saveStats(battleStats);
+        statsRepository.save(battleStats);
     }
 }

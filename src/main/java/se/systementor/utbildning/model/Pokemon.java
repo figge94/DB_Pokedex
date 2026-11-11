@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Pokemon {
-    private final int id;
+    private int id;
     private final String name;
     private final Type type;
     private final int maxHp;
@@ -33,7 +33,7 @@ public class Pokemon {
             return false;
         }
 
-        return id == other.id;
+        return id > 0 && id == other.id;
     }
 
     // Använder ID för att skapa en hashkod.
@@ -244,11 +244,27 @@ public class Pokemon {
 
     // Kontrollerar att ett ID är ett positivt heltal.
     private static void validateId(int id) {
-        if (id <= 0) {
+        if (id < 0) {
             throw new InvalidPokemonException(
-                    "ID måste vara större än 0."
+                    "ID får inte vara negativt."
             );
         }
+    }
+
+    public void assignId(int generatedId) {
+        if (this.id != 0) {
+            throw new IllegalStateException(
+                    "Pokemon har redan ett ID."
+            );
+        }
+
+        if (generatedId <= 0) {
+            throw new InvalidPokemonException(
+                    "Databasens ID måste vara större än 0."
+            );
+        }
+
+        this.id = generatedId;
     }
 
     // Kontrollerar att Pokemons namn följer programmets regler.

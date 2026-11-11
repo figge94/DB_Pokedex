@@ -1,10 +1,6 @@
 package se.systementor.utbildning.service;
 
-import se.systementor.utbildning.model.ActionResult;
-import se.systementor.utbildning.model.BattleAction;
-import se.systementor.utbildning.model.BattleStats;
-import se.systementor.utbildning.model.CpuPlayer;
-import se.systementor.utbildning.model.Pokemon;
+import se.systementor.utbildning.model.*;
 import se.systementor.utbildning.ui.BattlePresentation;
 
 import java.util.ArrayList;
@@ -33,19 +29,20 @@ public class BattleTurnService {
         return action.execute(attacker, defender);
     }
 
-    // Utför spelarens handling och registrerar använda attacker.
-    public void playerTurn(
+    public BattleRound playerTurn(
             Pokemon playerPokemon,
             Pokemon wildPokemon,
-            BattleAction playerAction
+            BattleAction playerAction,
+            int roundNumber
     ) {
+        int hpBefore = wildPokemon.getCurrentHp();
+
         ActionResult result = executeAction(
                 playerAction,
                 playerPokemon,
                 wildPokemon
         );
 
-        // Presentationsklassen ansvarar för utskriften av resultatet.
         BattlePresentation.showActionResult(
                 playerAction,
                 result,
@@ -53,22 +50,34 @@ public class BattleTurnService {
                 wildPokemon
         );
 
-        // Registrerar attacken så att användningsstatistik kan visas.
         battleStats.registerAttackUsage(playerAction.label());
+
+        int damage = Math.max(0, hpBefore - wildPokemon.getCurrentHp());
+
+        return new BattleRound(
+                roundNumber,
+                playerPokemon.getId(),
+                playerAction.label(),
+                damage
+        );
     }
 
-    // Utför CPU:ns handling med hjälp av dess strategi.
-    public void wildTurn(
+    // Utför CPU:ns handling och returnerar information om attacken.
+    public BattleRound wildTurn(
             Pokemon wildPokemon,
-            Pokemon playerPokemon
+            Pokemon playerPokemon,
+            int roundNumber
     ) {
-        // Attack-objekten kan behandlas som BattleAction (polymorfism).
+        // CPU:n väljer en attack.
         List<BattleAction> actions =
                 new ArrayList<>(wildPokemon.getAttacks());
 
-        // CpuPlayer låter sin CpuStrategy välja handling (Strategy Pattern).
         BattleAction selectedAction = cpuPlayer.chooseAction(actions);
 
+        // Sparar spelarens HP innan attacken.
+        int hpBefore = playerPokemon.getCurrentHp();
+
+        // Utför attacken.
         ActionResult result = executeAction(
                 selectedAction,
                 wildPokemon,
@@ -80,6 +89,17 @@ public class BattleTurnService {
                 result,
                 wildPokemon,
                 playerPokemon
+        );
+
+        // Beräknar faktisk HP-förlust.
+        int damage = Math.max(0, hpBefore - playerPokemon.getCurrentHp());
+
+        // Returnerar information som ska sparas i MongoDB.
+        return new BattleRound(
+                roundNumber,
+                wildPokemon.getId(),
+                selectedAction.label(),
+                damage
         );
     }
 }

@@ -1,14 +1,17 @@
 package se.systementor.utbildning;
 
-import se.systementor.utbildning.config.DbConfig;
+import org.springframework.boot.SpringApplication;
+import org.springframework.context.ConfigurableApplicationContext;
 import se.systementor.utbildning.model.Pokemon;
-import se.systementor.utbildning.repository.jpa.JpaPokemonRepository;
+import se.systementor.utbildning.repository.PokemonDao;
 
 public class JpaConnectionTest {
 
     public static void main(String[] args) {
-        try {
-            JpaPokemonRepository repository = new JpaPokemonRepository();
+        try (ConfigurableApplicationContext context =
+                     SpringApplication.run(PokemonApplication.class, args)) {
+
+            PokemonDao repository = context.getBean(PokemonDao.class);
 
             for (Pokemon pokemon : repository.findAll()) {
                 System.out.println(
@@ -24,8 +27,6 @@ public class JpaConnectionTest {
                     ),
                     () -> System.out.println("Ingen Pokemon med ID 1.")
             );
-        } finally {
-            DbConfig.close();
         }
     }
 }

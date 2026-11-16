@@ -12,6 +12,9 @@ import se.systementor.utbildning.repository.BattleStatsRepository;
 import static com.mongodb.client.model.Filters.eq;
 import static com.mongodb.client.model.Projections.excludeId;
 
+import org.springframework.stereotype.Repository;
+
+@Repository
 public class MongoBattleStatsRepository implements BattleStatsRepository {
     private static final String PLAYER_ID = "local-player";
 

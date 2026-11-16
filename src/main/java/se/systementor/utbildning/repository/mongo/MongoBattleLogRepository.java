@@ -14,6 +14,9 @@ import java.util.List;
 import static com.mongodb.client.model.Filters.eq;
 import static com.mongodb.client.model.Updates.set;
 
+import org.springframework.stereotype.Repository;
+
+@Repository
 public class MongoBattleLogRepository implements BattleLogRepository {
 
     private final MongoCollection<Document> collection;

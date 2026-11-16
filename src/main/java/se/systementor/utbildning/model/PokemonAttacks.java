@@ -37,7 +37,7 @@ public class PokemonAttacks {
             );
         }
 
-        if (newAttacks.contains(null)) {
+        if (newAttacks.stream().anyMatch(attack -> attack == null)) {
             throw new InvalidAttackException(
                     "Attacklistan får inte innehålla null."
             );

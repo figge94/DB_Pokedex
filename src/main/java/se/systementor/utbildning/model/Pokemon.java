@@ -19,7 +19,8 @@ public class Pokemon {
 
     private int currentHp;
 
-    private final List<Attack> attacks = new ArrayList<>();
+    @JsonIgnore
+    private final PokemonAttacks pokemonAttacks = new PokemonAttacks();
 
     // Pokemon med samma ID räknas som lika.
     @Override
@@ -96,72 +97,24 @@ public class Pokemon {
 
     // Returnerar en oföränderlig kopia så listan inte kan ändras utifrån.
     public List<Attack> getAttacks() {
-        return List.copyOf(attacks);
+        return pokemonAttacks.getAttacks();
     }
 
     // Lägger till en attack, max fyra tillåtna.
     public void addAttack(Attack attack) {
-
-        if (attack == null) {
-            throw new InvalidAttackException(
-                    "Attack får inte vara null."
-            );
-        }
-
-        if (attacks.size() >= 4) {
-            throw new InvalidAttackException(
-                    "En Pokemon kan ha max 4 attacker."
-            );
-        }
-
-        attacks.add(attack);
+        pokemonAttacks.addAttack(attack);
     }
 
     // Ersätter hela attacklistan, exempelvis vid JSON-inläsning
     // eller när en ändring behöver återställas efter ett sparfel.
     @JsonProperty("attacks")
-    public void replaceAttacks(List<Attack> newAttacks) {
-
-        if (newAttacks == null || newAttacks.isEmpty() || newAttacks.size() > 4) {
-            throw new InvalidAttackException(
-                    "En Pokemon måste ha mellan 1 och 4 attacker."
-            );
-        }
-
-        for (Attack attack : newAttacks) {
-            if (attack == null) {
-                throw new InvalidAttackException(
-                        "Attacklistan får inte innehålla null."
-                );
-            }
-        }
-
-        // Ersätter den gamla listan först efter godkänd validering.
-        attacks.clear();
-        attacks.addAll(newAttacks);
+    public void replaceAttacks(List<Attack> attacks) {
+        pokemonAttacks.replaceAttacks(attacks);
     }
 
     // Tar bort en attack, men tillåter inte att den sista tas bort.
     public void removeAttack(Attack attack) {
-        if (attack == null) {
-            throw new InvalidAttackException(
-                    "Attack får inte vara null."
-            );
-        }
-
-        if (attacks.size() <= 1) {
-            throw new InvalidAttackException(
-                    "En Pokemon måste ha minst 1 attack."
-            );
-        }
-
-        if (!attacks.contains(attack)) {
-            throw new InvalidAttackException(
-                    name + " har inte den attacken."
-            );
-        }
-
-        attacks.remove(attack);
+        pokemonAttacks.removeAttack(attack);
     }
 
     // Minskar en Pokemons hälsa när den blivit träffad.
@@ -230,7 +183,9 @@ public class Pokemon {
         updatedPokemon.currentHp = Math.min(currentHp, maxHp);
 
         // Kopierar attackerna till den nya Pokemon.
-        updatedPokemon.attacks.addAll(attacks);
+        if (!pokemonAttacks.getAttacks().isEmpty()) {
+            updatedPokemon.replaceAttacks(pokemonAttacks.getAttacks());
+        }
 
         return updatedPokemon;
     }

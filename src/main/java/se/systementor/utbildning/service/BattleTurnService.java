@@ -52,6 +52,7 @@ public class BattleTurnService {
 
         battleStats.registerAttackUsage(playerAction.label());
 
+        // Sparar faktisk HP-förlust, inte attackens beräknade skada.
         int damage = Math.max(0, hpBefore - wildPokemon.getCurrentHp());
 
         return new BattleRound(

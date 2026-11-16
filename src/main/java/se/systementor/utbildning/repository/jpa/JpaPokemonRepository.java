@@ -25,18 +25,18 @@ public class JpaPokemonRepository implements PokemonDao {
     @PersistenceContext
     private EntityManager em;
 
+    private final SpringDataPokemonRepository springDataRepository;
+
+    public JpaPokemonRepository(SpringDataPokemonRepository springDataRepository) {
+        this.springDataRepository = springDataRepository;
+    }
 
     @Override
     @Transactional(readOnly = true)
     public List<Pokemon> findAll() {
 
         try {
-            List<PokemonEntity> entities = em.createQuery("""
-                SELECT DISTINCT p FROM PokemonEntity p
-                LEFT JOIN FETCH p.attacks a
-                ORDER BY p.id
-                """, PokemonEntity.class)
-                    .getResultList();
+            List<PokemonEntity> entities = springDataRepository.findAllWithAttacks();
 
             List<Pokemon> pokemons = new ArrayList<>();
 
@@ -56,23 +56,9 @@ public class JpaPokemonRepository implements PokemonDao {
     @Override
     @Transactional(readOnly = true)
     public Optional<Pokemon> findById(int id) {
-
         try {
-            List<PokemonEntity> entities = em.createQuery("""
-                SELECT DISTINCT p FROM PokemonEntity p
-                LEFT JOIN FETCH p.attacks a
-                WHERE p.id = :id
-                """, PokemonEntity.class)
-                    .setParameter("id", id)
-                    .getResultList();
-
-            PokemonEntity entity = entities.isEmpty()
-                    ? null
-                    : entities.get(0);
-
-            return entity == null
-                    ? Optional.empty()
-                    : Optional.of(toModel(entity));
+            return springDataRepository.findByIdWithAttacks(id)
+                    .map(this::toModel);
 
         } catch (RuntimeException e) {
             throw new PokemonLoadException(
@@ -105,14 +91,10 @@ public class JpaPokemonRepository implements PokemonDao {
     @Override
     @Transactional
     public void delete(int id) {
-
         try {
-            PokemonEntity entity = em.find(PokemonEntity.class, id);
-
-            if (entity != null) {
-                em.remove(entity);
+            if (springDataRepository.existsById(id)) {
+                springDataRepository.deleteById(id);
             }
-
         } catch (RuntimeException e) {
             throw new PokemonSaveException(
                     "Kunde inte ta bort Pokemon med ID " + id, e
@@ -125,8 +107,9 @@ public class JpaPokemonRepository implements PokemonDao {
     public void save(Pokemon pokemon) {
 
         try {
-            PokemonEntity entity =
-                    em.find(PokemonEntity.class, pokemon.getId());
+            PokemonEntity entity = springDataRepository
+                    .findById(pokemon.getId())
+                    .orElse(null);
 
             if (entity == null) {
                 throw new IllegalArgumentException(
@@ -236,8 +219,7 @@ public class JpaPokemonRepository implements PokemonDao {
                 entity.attacks.add(attackEntity);
             }
 
-            em.persist(entity);
-            em.flush();
+            entity = springDataRepository.saveAndFlush(entity);
 
             Pokemon savedPokemon = new Pokemon(
                     entity.id,

@@ -18,8 +18,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+import org.springframework.stereotype.Service;
+
 // Samordnar striden mellan spelaren och CPU:n.
 // Använder andra klasser för handlingar, presentation och statistik.
+@Service
 public class BattleService {
 
     private final BattleStats battleStats;

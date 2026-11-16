@@ -1,7 +1,6 @@
 package se.systementor.utbildning.repository.jpa;
 
 import jakarta.persistence.EntityManager;
-import se.systementor.utbildning.config.DbConfig;
 import se.systementor.utbildning.exception.PokemonLoadException;
 import se.systementor.utbildning.exception.PokemonSaveException;
 import se.systementor.utbildning.model.DamageAttack;
@@ -16,19 +15,27 @@ import se.systementor.utbildning.model.Attack;
 
 import se.systementor.utbildning.repository.PokemonDao;
 
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.PersistenceContext;
+
+@Repository
 public class JpaPokemonRepository implements PokemonDao {
 
+    @PersistenceContext
+    private EntityManager em;
+
+
+    @Override
+    @Transactional(readOnly = true)
     public List<Pokemon> findAll() {
-        EntityManager em = DbConfig.getEntityManager();
 
         try {
-            em.getTransaction().begin();
-
             List<PokemonEntity> entities = em.createQuery("""
-                            SELECT DISTINCT p FROM PokemonEntity p
-                            LEFT JOIN FETCH p.attacks a
-                            ORDER BY p.id
-                            """, PokemonEntity.class)
+                SELECT DISTINCT p FROM PokemonEntity p
+                LEFT JOIN FETCH p.attacks a
+                ORDER BY p.id
+                """, PokemonEntity.class)
                     .getResultList();
 
             List<Pokemon> pokemons = new ArrayList<>();
@@ -37,33 +44,25 @@ public class JpaPokemonRepository implements PokemonDao {
                 pokemons.add(toModel(entity));
             }
 
-            em.getTransaction().commit();
             return pokemons;
 
         } catch (RuntimeException e) {
-            if (em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-
             throw new PokemonLoadException(
                     "Kunde inte läsa Pokemon från databasen.", e
             );
-        } finally {
-            em.close();
         }
     }
 
+    @Override
+    @Transactional(readOnly = true)
     public Optional<Pokemon> findById(int id) {
-        EntityManager em = DbConfig.getEntityManager();
 
         try {
-            em.getTransaction().begin();
-
             List<PokemonEntity> entities = em.createQuery("""
-                            SELECT DISTINCT p FROM PokemonEntity p
-                            LEFT JOIN FETCH p.attacks a
-                            WHERE p.id = :id
-                            """, PokemonEntity.class)
+                SELECT DISTINCT p FROM PokemonEntity p
+                LEFT JOIN FETCH p.attacks a
+                WHERE p.id = :id
+                """, PokemonEntity.class)
                     .setParameter("id", id)
                     .getResultList();
 
@@ -71,23 +70,14 @@ public class JpaPokemonRepository implements PokemonDao {
                     ? null
                     : entities.get(0);
 
-            Optional<Pokemon> result = entity == null
+            return entity == null
                     ? Optional.empty()
                     : Optional.of(toModel(entity));
 
-            em.getTransaction().commit();
-            return result;
-
         } catch (RuntimeException e) {
-            if (em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-
             throw new PokemonLoadException(
                     "Kunde inte läsa Pokemon med ID " + id, e
             );
-        } finally {
-            em.close();
         }
     }
 
@@ -112,39 +102,29 @@ public class JpaPokemonRepository implements PokemonDao {
         return pokemon;
     }
 
+    @Override
+    @Transactional
     public void delete(int id) {
-        EntityManager em = DbConfig.getEntityManager();
 
         try {
-            em.getTransaction().begin();
-
             PokemonEntity entity = em.find(PokemonEntity.class, id);
 
             if (entity != null) {
                 em.remove(entity);
             }
 
-            em.getTransaction().commit();
-
         } catch (RuntimeException e) {
-            if (em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-
             throw new PokemonSaveException(
                     "Kunde inte ta bort Pokemon med ID " + id, e
             );
-        } finally {
-            em.close();
         }
     }
 
+    @Override
+    @Transactional
     public void save(Pokemon pokemon) {
-        EntityManager em = DbConfig.getEntityManager();
 
         try {
-            em.getTransaction().begin();
-
             PokemonEntity entity =
                     em.find(PokemonEntity.class, pokemon.getId());
 
@@ -176,18 +156,11 @@ public class JpaPokemonRepository implements PokemonDao {
             entity.attacks.clear();
             entity.attacks.addAll(attacks);
 
-            em.getTransaction().commit();
-
         } catch (RuntimeException e) {
-            if (em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-
             throw new PokemonSaveException(
-                    "Kunde inte uppdatera Pokemon med ID " + pokemon.getId(), e
+                    "Kunde inte uppdatera Pokemon med ID "
+                            + pokemon.getId(), e
             );
-        } finally {
-            em.close();
         }
     }
 
@@ -235,6 +208,8 @@ public class JpaPokemonRepository implements PokemonDao {
         return entity;
     }
 
+    @Override
+    @Transactional
     public Pokemon insert(Pokemon pokemon) {
         if (pokemon.getId() != 0) {
             throw new IllegalArgumentException(
@@ -242,11 +217,7 @@ public class JpaPokemonRepository implements PokemonDao {
             );
         }
 
-        EntityManager em = DbConfig.getEntityManager();
-
         try {
-            em.getTransaction().begin();
-
             PokemonEntity entity = new PokemonEntity();
             entity.name = pokemon.getName();
             entity.type = pokemon.getType();
@@ -280,19 +251,12 @@ public class JpaPokemonRepository implements PokemonDao {
                 savedPokemon.addAttack(attack);
             }
 
-            em.getTransaction().commit();
             return savedPokemon;
 
         } catch (RuntimeException e) {
-            if (em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-
             throw new PokemonSaveException(
                     "Kunde inte skapa Pokemon i databasen.", e
             );
-        } finally {
-            em.close();
         }
     }
 }
